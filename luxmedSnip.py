@@ -5,14 +5,38 @@ import json
 import logging
 import os
 import datetime
-import pushover
 import shelve
 import schedule
 import requests
+import telegram.bot
 import time
+
+from telegram.ext import Updater, messagequeue
+from telegram.utils.request import Request
 
 coloredlogs.install(level="INFO")
 log = logging.getLogger("main")
+
+
+class MQBot(telegram.bot.Bot):
+    '''A subclass of Bot which delegates send method handling to MQ'''
+    def __init__(self, *args, is_queued_def=True, mqueue=None, **kwargs):
+        super(MQBot, self).__init__(*args, **kwargs)
+        # below 2 attributes should be provided for decorator usage
+        self._is_messages_queued_default = is_queued_def
+        self._msg_queue = mqueue or messagequeue.MessageQueue()
+
+    def __del__(self):
+        try:
+            self._msg_queue.stop()
+        except:
+            pass
+
+    @messagequeue.queuedmessage
+    def send_message(self, *args, **kwargs):
+        '''Wrapped method would accept new `queued` and `isgroup`
+        OPTIONAL arguments'''
+        return super(MQBot, self).send_message(*args, **kwargs)
 
 
 class LuxMedSniper:
@@ -25,8 +49,12 @@ class LuxMedSniper:
         self._loadConfiguration(configuration_file)
         self._createSession()
         self._logIn()
-        pushover.init(self.config['pushover']['api_token'])
-        self.pushoverClient = pushover.Client(self.config['pushover']['user_key'])
+        q = messagequeue.MessageQueue(all_burst_limit=3, all_time_limit_ms=3000)
+        # set connection pool size for bot
+        request = Request(con_pool_size=8)
+        mqBot = MQBot(token=self.config['telegram']['api_token'], request=request, mqueue=q)
+        updater = Updater(bot=mqBot, use_context=True)
+        self.telegramDispatcher = updater.dispatcher
 
     def _createSession(self):
         self.session = requests.session()
@@ -123,8 +151,8 @@ class LuxMedSniper:
         db.close()
 
     def _sendNotification(self, appointment):
-        self.pushoverClient.send_message(self.config['pushover']['message_template'].format(
-            **appointment, title=self.config['pushover']['title']))
+        self.telegramDispatcher.bot.send_message(text=self.config['telegram']['message_template'].format(
+            **appointment), chat_id=self.config['telegram']['user_key'])
 
     def _isAlreadyKnown(self, appointment):
         db = shelve.open(self.config['misc']['notifydb'])
