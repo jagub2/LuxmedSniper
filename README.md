@@ -1,7 +1,7 @@
 # LuxmedSniper
 LUX MED appointments sniper
 =======================================
-Simple tool to notify about available slot in LUX MED medical care service using pushover notifications.
+Simple tool to notify about available slot in LUX MED medical care service using Telegram notifications.
 
 How to use LuxmedSniper?
 --------------------
@@ -17,11 +17,10 @@ luxmedsniper: #                     mandatory  mandatory
                                   # You can get those ids by reading form data sent to https://portalpacjenta.luxmed.pl/PatientPortal/Reservations/Reservation/PartialSearch
                                   # on https://portalpacjenta.luxmed.pl/PatientPortal/Reservations/Reservation/Search by chrome dev tools
   lookup_time_days: 14 # How many days from now should script look at.
-pushover:
-  user_key: # Your pushover.net user key
-  api_token:  # pushover.net App API Token
+telegram:
+  user_key: # Your Telegram user ID
+  api_token:  # Telegram Bot API Token
   message_template: "New visit! {AppointmentDate} at {ClinicPublicName} - {DoctorName}"
-  title: "New Lux Med visit available!" # Pushover message topic
 misc:
   notifydb: ./surgeon_data # State file used to remember which notifications has been sent already
 ```
@@ -30,7 +29,7 @@ misc:
 ```
 nohup python3 luxmedSnip.py -c /path/to/my_favourite_surgeon.yml &
 ```
-3) Wait for new appointment notifications in your pushover app on mobile :)!
+3) Wait for new appointment notifications in your Telegram app on mobile or desktop :)!
 
 # Warning
 
